@@ -1,0 +1,10 @@
+#spring:
+#  config:
+#    activate:
+#      on-profile: prod
+
+
+
+spring:
+  profiles:
+    active: prod
