@@ -1,8 +1,11 @@
 package com.agmkhair.reservation.entry;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.util.List;
 
 @Entity
 @Data
@@ -12,10 +15,9 @@ public class FlightLeg {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
     @JoinColumn(name = "flight_id")
-    @JsonIgnore
-    private Flight flight;
+    private Long flight;
+
 
     private Integer legIndex;
     private String flightNo;
@@ -23,4 +25,5 @@ public class FlightLeg {
     private String toAirport;
     private String departureTime;
     private String arrivalTime;
+
 }

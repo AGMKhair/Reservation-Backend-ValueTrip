@@ -1,11 +1,13 @@
 package com.agmkhair.reservation.entry;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 
 @Table(name = "airlines")
@@ -29,4 +31,8 @@ public class Airline {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "airline")
+    @JsonIgnore
+    private List<Flight> flights;
 }

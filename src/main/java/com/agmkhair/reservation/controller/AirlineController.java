@@ -1,7 +1,9 @@
 package com.agmkhair.reservation.controller;
 
+import com.agmkhair.reservation.dto.AirlineResponse;
 import com.agmkhair.reservation.entry.Airline;
 import com.agmkhair.reservation.entry.Booking;
+import com.agmkhair.reservation.entry.Flight;
 import com.agmkhair.reservation.repository.AirlineRepository;
 import com.agmkhair.reservation.repository.BookingRepository;
 import com.agmkhair.reservation.service.FileStorageService;
@@ -19,10 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.Normalizer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/airlines")
@@ -35,10 +34,39 @@ public class AirlineController {
     private FileStorageService fileStorageService;
 
 
+
     @GetMapping
-    public List<Airline> getAllAirlines() {
-        return airlineRepository.findAll();
+    public List<AirlineResponse> getAllAirlines() {
+
+        List<Airline> airlines = airlineRepository.findAll();
+
+        return airlines.stream().map(a -> {
+
+            AirlineResponse dto = new AirlineResponse();
+
+            dto.setId(a.getId());
+            dto.setName(a.getName());
+            dto.setLogoUrl(a.getLogoUrl());
+            dto.setIconUrl(a.getIconUrl());
+
+            // convert flights → DTO list
+            List<Flight> flightList = a.getFlights() != null
+                    ? a.getFlights().stream().map(f -> {
+                Flight fDto = new Flight();
+                fDto.setId(f.getId());
+                fDto.setFlightName(f.getFlightName());
+                fDto.setFlightType(f.getFlightType());
+                return fDto;
+            }).toList()
+                    : new ArrayList<>();
+
+            dto.setFlights(flightList);
+
+            return dto;
+
+        }).toList();
     }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteAirline(@PathVariable Long id) {
