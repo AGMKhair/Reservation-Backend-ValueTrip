@@ -48,19 +48,7 @@ public class AirlineController {
             dto.setName(a.getName());
             dto.setLogoUrl(a.getLogoUrl());
             dto.setIconUrl(a.getIconUrl());
-
-            // convert flights → DTO list
-            List<Flight> flightList = a.getFlights() != null
-                    ? a.getFlights().stream().map(f -> {
-                Flight fDto = new Flight();
-                fDto.setId(f.getId());
-                fDto.setFlightName(f.getFlightName());
-                fDto.setFlightType(f.getFlightType());
-                return fDto;
-            }).toList()
-                    : new ArrayList<>();
-
-            dto.setFlights(flightList);
+            dto.setFlights(a.getFlights());
 
             return dto;
 
