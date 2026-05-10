@@ -10,6 +10,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
+/*
+{id: , flight_id: 2, passenger_name: GJH, passenger_type: Adult, Male, itinerary_reference: HML, departure_01: 11 May 2026 — 6:08, landing_01: 11 May 2026 — 9, departure_02: 12 May 2026 — 3, landing_02: 12 May 2026 — 7:09, booking_type: flight_booking, flight_type: transit, tickets: [], created_at: 2026-05-11T02:12:42.582831, is_synced: true}
+* */
 @Entity
 @Getter
 @Setter

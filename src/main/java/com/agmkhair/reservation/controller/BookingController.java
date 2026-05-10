@@ -69,6 +69,13 @@ public class BookingController {
         if (dto.getLanding01() != null) {
             booking.setLanding01(dto.getLanding01());
         }
+        if (dto.getDeparture02() != null) {
+            booking.setDeparture02(dto.getDeparture02());
+        }
+
+        if (dto.getLanding02() != null) {
+            booking.setLanding02(dto.getLanding02());
+        }
 
         // --------------------
         // RELATION (FLIGHT)

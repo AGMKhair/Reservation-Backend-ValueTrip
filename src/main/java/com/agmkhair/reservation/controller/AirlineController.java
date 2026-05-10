@@ -159,7 +159,7 @@ public class AirlineController {
                     );
 
                     logoUrl =
-                            "http://localhost:8888/uploads/airlines/"
+                            "http://192.168.0.101:8888/uploads/airlines/"
                                     + folderName + "/" + logoFileName;
                 }
 
@@ -179,7 +179,7 @@ public class AirlineController {
                     );
 
                     iconUrl =
-                            "http://localhost:8888/uploads/airlines/"
+                            "http://192.168.0.101:8888/uploads/airlines/"
                                     + folderName + "/" + iconFileName;
                 }
 

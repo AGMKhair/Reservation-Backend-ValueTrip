@@ -36,6 +36,12 @@ public class Booking {
     @JsonProperty("landing_01")
     private String landing01;
 
+    @JsonProperty("departure_02")
+    private String departure02;
+
+    @JsonProperty("landing_02")
+    private String landing02;
+
     @JsonProperty("booking_type")
     private String bookingType;
 
