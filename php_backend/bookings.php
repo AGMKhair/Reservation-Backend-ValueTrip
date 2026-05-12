@@ -149,7 +149,11 @@ switch ($method) {
             ?? $input['flight_id']
             ?? null;
 
-        $createdAt = date('Y-m-d H:i:s');
+
+               $createdAt =   $input['created_at']
+            ?? date('Y-m-d H:i:s');
+
+
 
         $stmt = $pdo->prepare('
             INSERT INTO bookings (
