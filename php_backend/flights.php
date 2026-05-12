@@ -64,32 +64,113 @@ switch ($method) {
         sendJson($stmt->fetch());
         break;
 
-    case 'PUT':
-        if (!$id) {
-            sendJson("Flight ID is required", 400);
-        }
-        $input = json_decode(file_get_contents('php://input'), true);
-        
-        $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = ?');
-        $stmt->execute([$id]);
-        if (!$stmt->fetch()) {
-            http_response_code(404);
-            exit();
-        }
+case 'PUT':
 
-        $flightName = $input['flightName'] ?? null;
-        $flightType = $input['flightType'] ?? null;
-        $airlineId = isset($input['airline']) ? $input['airline']['id'] : null;
-        $meal01 = $input['meal01'] ?? null;
-        $meal02 = $input['meal02'] ?? null;
+    if (!$id) {
+        sendJson("Flight ID is required", 400);
+    }
 
-        $stmt = $pdo->prepare('UPDATE flights SET flight_name = ?, flight_type = ?, airline_id = ?, meal01 = ?, meal02 = ? WHERE id = ?');
-        $stmt->execute([$flightName, $flightType, $airlineId, $meal01, $meal02, $id]);
+    $input = json_decode(file_get_contents('php://input'), true);
 
-        $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = ?');
-        $stmt->execute([$id]);
-        sendJson($stmt->fetch());
-        break;
+    // Check flight exists
+    $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = ?');
+    $stmt->execute([$id]);
+
+    $existingFlight = $stmt->fetch();
+
+    if (!$existingFlight) {
+        sendJson("Flight not found", 404);
+    }
+
+    $airlineId = isset($input['airline'])
+        ? $input['airline']['id']
+        : $existingFlight['airline_id'];
+
+    $flightName = $input['flightName'] ?? $existingFlight['flight_name'];
+    $flightType = $input['flightType'] ?? $existingFlight['flight_type'];
+
+    $flightNo = $input['flightNo'] ?? $existingFlight['flight_no'];
+    $flightNo2 = $input['flightNo2'] ?? $existingFlight['flight_no_2'];
+
+    $departureTimeFirst = $input['departureTimeFirst'] ?? $existingFlight['departure_time_first'];
+    $arrivalTimeFirst = $input['arrivalTimeFirst'] ?? $existingFlight['arrival_time_first'];
+
+    $departureTimeSecond = $input['departureTimeSecond'] ?? $existingFlight['departure_time_second'];
+    $arrivalTimeSecond = $input['arrivalTimeSecond'] ?? $existingFlight['arrival_time_second'];
+
+    $fromFirstAirport = $input['fromFirstAirport'] ?? $existingFlight['from_first_airport'];
+    $toFirstAirport = $input['toFirstAirport'] ?? $existingFlight['to_first_airport'];
+
+    $fromSecondAirport = $input['fromSecondAirport'] ?? $existingFlight['from_second_airport'];
+    $toSecondAirport = $input['toSecondAirport'] ?? $existingFlight['to_second_airport'];
+
+    $checkInBaggage = $input['checkInBaggage'] ?? $existingFlight['check_in_baggage'];
+    $cabinBaggage = $input['cabinBaggage'] ?? $existingFlight['cabin_baggage'];
+
+    $meal01 = $input['meal01'] ?? $existingFlight['meal01'];
+    $meal02 = $input['meal02'] ?? $existingFlight['meal02'];
+
+    $stmt = $pdo->prepare('
+        UPDATE flights SET
+            airline_id = ?,
+            flight_name = ?,
+            flight_type = ?,
+            flight_no = ?,
+            flight_no_2 = ?,
+            departure_time_first = ?,
+            arrival_time_first = ?,
+            departure_time_second = ?,
+            arrival_time_second = ?,
+            from_first_airport = ?,
+            to_first_airport = ?,
+            from_second_airport = ?,
+            to_second_airport = ?,
+            check_in_baggage = ?,
+            cabin_baggage = ?,
+            meal01 = ?,
+            meal02 = ?
+        WHERE id = ?
+    ');
+
+    $stmt->execute([
+        $airlineId,
+        $flightName,
+        $flightType,
+        $flightNo,
+        $flightNo2,
+        $departureTimeFirst,
+        $arrivalTimeFirst,
+        $departureTimeSecond,
+        $arrivalTimeSecond,
+        $fromFirstAirport,
+        $toFirstAirport,
+        $fromSecondAirport,
+        $toSecondAirport,
+        $checkInBaggage,
+        $cabinBaggage,
+        $meal01,
+        $meal02,
+        $id
+    ]);
+
+    // Return updated flight
+    $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = ?');
+    $stmt->execute([$id]);
+
+    $updatedFlight = $stmt->fetch();
+
+    // attach airline
+    $stmtAir = $pdo->prepare('SELECT * FROM airlines WHERE id = ?');
+    $stmtAir->execute([$updatedFlight['airline_id']]);
+
+    $updatedFlight['airline'] = $stmtAir->fetch() ?: null;
+
+    sendJson([
+        "message" => "Flight updated successfully",
+        "data" => $updatedFlight
+    ]);
+
+    break;
 
     case 'DELETE':
         if (!$id) {
