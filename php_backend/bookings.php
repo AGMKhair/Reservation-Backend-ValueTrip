@@ -1,5 +1,4 @@
 <?php
-// bookings.php
 
 require_once 'db.php';
 
@@ -39,7 +38,10 @@ switch ($method) {
         // Single booking
         if ($id) {
 
-            $stmt = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
+            $stmt = $pdo->prepare(
+                'SELECT * FROM bookings WHERE id = ?'
+            );
+
             $stmt->execute([$id]);
 
             $booking = $stmt->fetch();
@@ -50,15 +52,6 @@ switch ($method) {
                 ], 404);
             }
 
-            // Get tickets
-            $stmtTickets = $pdo->prepare(
-                'SELECT * FROM tickets WHERE booking_id = ?'
-            );
-
-            $stmtTickets->execute([$booking['id']]);
-
-            $booking['tickets'] = $stmtTickets->fetchAll();
-
             sendJson($booking);
         }
 
@@ -68,17 +61,6 @@ switch ($method) {
         );
 
         $bookings = $stmt->fetchAll();
-
-        foreach ($bookings as &$booking) {
-
-            $stmtTickets = $pdo->prepare(
-                'SELECT * FROM tickets WHERE booking_id = ?'
-            );
-
-            $stmtTickets->execute([$booking['id']]);
-
-            $booking['tickets'] = $stmtTickets->fetchAll();
-        }
 
         sendJson($bookings);
 
@@ -149,11 +131,38 @@ switch ($method) {
             ?? $input['flight_id']
             ?? null;
 
+        // TICKET DATA
+        $ticketNo = null;
+        $issuedAt = null;
 
-               $createdAt =   $input['created_at']
+        if (
+            isset($input['tickets']) &&
+            is_array($input['tickets']) &&
+            count($input['tickets']) > 0
+        ) {
+
+            $firstTicket = $input['tickets'][0];
+
+            $ticketNo = $firstTicket['ticket_no']
+                ?? $firstTicket['ticketNo']
+                ?? null;
+
+            $issuedAt = $firstTicket['issued_at']
+                ?? $firstTicket['issuedAt']
+                ?? null;
+        }
+
+        // direct field support
+        $ticketNo = $input['ticket_no']
+            ?? $input['ticketNo']
+            ?? $ticketNo;
+
+        $issuedAt = $input['issued_at']
+            ?? $input['issuedAt']
+            ?? $issuedAt;
+
+        $createdAt = $input['created_at']
             ?? date('Y-m-d H:i:s');
-
-
 
         $stmt = $pdo->prepare('
             INSERT INTO bookings (
@@ -168,9 +177,11 @@ switch ($method) {
                 departure02,
                 landing02,
                 flight_id,
+                ticket_no,
+                issued_at,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ');
 
         $stmt->execute([
@@ -185,6 +196,8 @@ switch ($method) {
             $departure02,
             $landing02,
             $flightId,
+            $ticketNo,
+            $issuedAt,
             $createdAt
         ]);
 
@@ -231,18 +244,14 @@ switch ($method) {
             ], 404);
         }
 
-        // Read raw body
         $rawInput = file_get_contents("php://input");
 
-        // Try JSON decode
         $input = json_decode($rawInput, true);
 
-        // Fallback for x-www-form-urlencoded
         if (!$input) {
             parse_str($rawInput, $input);
         }
 
-        // Final fallback
         if (!$input) {
             $input = $_POST;
         }
@@ -265,7 +274,6 @@ switch ($method) {
 
         $flightType = $input['flightType']
             ?? $input['flight_type']
-            ?? $bookingType
             ?? $booking['flight_type'];
 
         $isSynced = isset($input['isSynced'])
@@ -278,23 +286,52 @@ switch ($method) {
 
         $departure01 = $input['departure01']
             ?? $input['departure_01']
-            ?? $booking['departure_01'];
+            ?? $booking['departure01'];
 
         $landing01 = $input['landing01']
             ?? $input['landing_01']
-            ?? $booking['landing_01'];
+            ?? $booking['landing01'];
 
         $departure02 = $input['departure02']
             ?? $input['departure_02']
-            ?? $booking['departure_02'];
+            ?? $booking['departure02'];
 
         $landing02 = $input['landing02']
             ?? $input['landing_02']
-            ?? $booking['landing_02'];
+            ?? $booking['landing02'];
 
         $flightId = $input['flightId']
             ?? $input['flight_id']
             ?? $booking['flight_id'];
+
+        // TICKET UPDATE
+        $ticketNo = $booking['ticket_no'];
+        $issuedAt = $booking['issued_at'];
+
+        if (
+            isset($input['tickets']) &&
+            is_array($input['tickets']) &&
+            count($input['tickets']) > 0
+        ) {
+
+            $firstTicket = $input['tickets'][0];
+
+            $ticketNo = $firstTicket['ticket_no']
+                ?? $firstTicket['ticketNo']
+                ?? $ticketNo;
+
+            $issuedAt = $firstTicket['issued_at']
+                ?? $firstTicket['issuedAt']
+                ?? $issuedAt;
+        }
+
+        $ticketNo = $input['ticket_no']
+            ?? $input['ticketNo']
+            ?? $ticketNo;
+
+        $issuedAt = $input['issued_at']
+            ?? $input['issuedAt']
+            ?? $issuedAt;
 
         $stmt = $pdo->prepare('
             UPDATE bookings
@@ -309,7 +346,9 @@ switch ($method) {
                 landing01 = ?,
                 departure02 = ?,
                 landing02 = ?,
-                flight_id = ?
+                flight_id = ?,
+                ticket_no = ?,
+                issued_at = ?
             WHERE id = ?
         ');
 
@@ -325,30 +364,20 @@ switch ($method) {
             $departure02,
             $landing02,
             $flightId,
+            $ticketNo,
+            $issuedAt,
             $id
         ]);
 
-        // Return updated booking
         $stmt = $pdo->prepare(
             'SELECT * FROM bookings WHERE id = ?'
         );
 
         $stmt->execute([$id]);
 
-        $updatedBooking = $stmt->fetch();
-
-        // Get tickets
-        $stmtTickets = $pdo->prepare(
-            'SELECT * FROM tickets WHERE booking_id = ?'
-        );
-
-        $stmtTickets->execute([$id]);
-
-        $updatedBooking['tickets'] = $stmtTickets->fetchAll();
-
         sendJson([
             "message" => "Booking updated successfully",
-            "data" => $updatedBooking
+            "data" => $stmt->fetch()
         ]);
 
         break;
@@ -366,7 +395,6 @@ switch ($method) {
             ], 400);
         }
 
-        // Check booking exists
         $stmt = $pdo->prepare(
             'SELECT * FROM bookings WHERE id = ?'
         );
@@ -383,31 +411,17 @@ switch ($method) {
 
         try {
 
-            $pdo->beginTransaction();
-
-            // Delete tickets first
-            $stmt = $pdo->prepare(
-                'DELETE FROM tickets WHERE booking_id = ?'
-            );
-
-            $stmt->execute([$id]);
-
-            // Delete booking
             $stmt = $pdo->prepare(
                 'DELETE FROM bookings WHERE id = ?'
             );
 
             $stmt->execute([$id]);
 
-            $pdo->commit();
-
             sendJson([
                 "message" => "Booking deleted successfully"
             ]);
 
         } catch (Exception $e) {
-
-            $pdo->rollBack();
 
             sendJson([
                 "message" => "Delete failed",
