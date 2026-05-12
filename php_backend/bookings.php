@@ -1,20 +1,31 @@
 <?php
 // bookings.php
+
 require_once 'db.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Handle PUT via POST with _method=PUT
-if ($method === 'POST' && isset($_POST['_method']) && strtoupper($_POST['_method']) === 'PUT') {
+// Handle PUT via POST
+if (
+    $method === 'POST' &&
+    isset($_POST['_method']) &&
+    strtoupper($_POST['_method']) === 'PUT'
+) {
     $method = 'PUT';
 }
 
-// Handle DELETE via POST with _method=DELETE
-if ($method === 'POST' && isset($_POST['_method']) && strtoupper($_POST['_method']) === 'DELETE') {
+// Handle DELETE via POST
+if (
+    $method === 'POST' &&
+    isset($_POST['_method']) &&
+    strtoupper($_POST['_method']) === 'DELETE'
+) {
     $method = 'DELETE';
 }
 
-$id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_POST['id']) ? intval($_POST['id']) : null);
+$id = isset($_GET['id'])
+    ? intval($_GET['id'])
+    : (isset($_POST['id']) ? intval($_POST['id']) : null);
 
 switch ($method) {
 
@@ -34,10 +45,16 @@ switch ($method) {
             $booking = $stmt->fetch();
 
             if (!$booking) {
-                sendJson("Booking not found", 404);
+                sendJson([
+                    "message" => "Booking not found"
+                ], 404);
             }
 
-            $stmtTickets = $pdo->prepare('SELECT * FROM tickets WHERE booking_id = ?');
+            // Get tickets
+            $stmtTickets = $pdo->prepare(
+                'SELECT * FROM tickets WHERE booking_id = ?'
+            );
+
             $stmtTickets->execute([$booking['id']]);
 
             $booking['tickets'] = $stmtTickets->fetchAll();
@@ -46,12 +63,18 @@ switch ($method) {
         }
 
         // All bookings
-        $stmt = $pdo->query('SELECT * FROM bookings ORDER BY id DESC');
+        $stmt = $pdo->query(
+            'SELECT * FROM bookings ORDER BY id DESC'
+        );
+
         $bookings = $stmt->fetchAll();
 
         foreach ($bookings as &$booking) {
 
-            $stmtTickets = $pdo->prepare('SELECT * FROM tickets WHERE booking_id = ?');
+            $stmtTickets = $pdo->prepare(
+                'SELECT * FROM tickets WHERE booking_id = ?'
+            );
+
             $stmtTickets->execute([$booking['id']]);
 
             $booking['tickets'] = $stmtTickets->fetchAll();
@@ -68,36 +91,67 @@ switch ($method) {
     */
     case 'POST':
 
-        $input = json_decode(file_get_contents('php://input'), true);
+        $rawInput = file_get_contents("php://input");
 
-        // fallback for form-data
+        $input = json_decode($rawInput, true);
+
+        // fallback form-data
         if (!$input) {
             $input = $_POST;
         }
 
-        $passengerName = $input['passengerName'] ?? null;
-        $passengerType = $input['passengerType'] ?? null;
-        $itineraryReference = $input['itineraryReference'] ?? null;
-        $bookingType = $input['bookingType'] ?? null;
+        $passengerName = $input['passengerName']
+            ?? $input['passenger_name']
+            ?? null;
 
-        // fallback like spring boot logic
-        $flightType = $input['flightType'] ?? $bookingType ?? null;
+        $passengerType = $input['passengerType']
+            ?? $input['passenger_type']
+            ?? null;
+
+        $itineraryReference = $input['itineraryReference']
+            ?? $input['itinerary_reference']
+            ?? null;
+
+        $bookingType = $input['bookingType']
+            ?? $input['booking_type']
+            ?? null;
+
+        $flightType = $input['flightType']
+            ?? $input['flight_type']
+            ?? $bookingType
+            ?? null;
 
         $isSynced = isset($input['isSynced'])
             ? (int)$input['isSynced']
-            : 0;
+            : (
+                isset($input['is_synced'])
+                    ? (int)$input['is_synced']
+                    : 0
+            );
 
-        $departure01 = $input['departure01'] ?? null;
-        $landing01 = $input['landing01'] ?? null;
+        $departure01 = $input['departure01']
+            ?? $input['departure_01']
+            ?? null;
 
-        $departure02 = $input['departure02'] ?? null;
-        $landing02 = $input['landing02'] ?? null;
+        $landing01 = $input['landing01']
+            ?? $input['landing_01']
+            ?? null;
 
-        $flightId = $input['flightId'] ?? null;
+        $departure02 = $input['departure02']
+            ?? $input['departure_02']
+            ?? null;
+
+        $landing02 = $input['landing02']
+            ?? $input['landing_02']
+            ?? null;
+
+        $flightId = $input['flightId']
+            ?? $input['flight_id']
+            ?? null;
 
         $createdAt = date('Y-m-d H:i:s');
 
-        $sql = '
+        $stmt = $pdo->prepare('
             INSERT INTO bookings (
                 passenger_name,
                 passenger_type,
@@ -105,17 +159,15 @@ switch ($method) {
                 booking_type,
                 flight_type,
                 is_synced,
-                departure_01,
-                landing_01,
-                departure_02,
-                landing_02,
+                departure01,
+                landing01,
+                departure02,
+                landing02,
                 flight_id,
                 created_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ';
-
-        $stmt = $pdo->prepare($sql);
+        ');
 
         $stmt->execute([
             $passengerName,
@@ -134,14 +186,15 @@ switch ($method) {
 
         $newId = $pdo->lastInsertId();
 
-        $stmt = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
-        $stmt->execute([$newId]);
+        $stmt = $pdo->prepare(
+            'SELECT * FROM bookings WHERE id = ?'
+        );
 
-        $booking = $stmt->fetch();
+        $stmt->execute([$newId]);
 
         sendJson([
             "message" => "Booking created successfully",
-            "data" => $booking
+            "data" => $stmt->fetch()
         ]);
 
         break;
@@ -154,46 +207,90 @@ switch ($method) {
     case 'PUT':
 
         if (!$id) {
-            sendJson("Booking ID is required", 400);
+            sendJson([
+                "message" => "Booking ID is required"
+            ], 400);
         }
 
-        // check booking exists
-        $stmt = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
+        // Check booking exists
+        $stmt = $pdo->prepare(
+            'SELECT * FROM bookings WHERE id = ?'
+        );
+
         $stmt->execute([$id]);
 
         $booking = $stmt->fetch();
 
         if (!$booking) {
-            sendJson("Booking not found", 404);
+            sendJson([
+                "message" => "Booking not found"
+            ], 404);
         }
 
-        $input = $_POST;
+        // Read raw body
+        $rawInput = file_get_contents("php://input");
 
-        // support raw json put
-        if (empty($input)) {
-            parse_str(file_get_contents("php://input"), $input);
+        // Try JSON decode
+        $input = json_decode($rawInput, true);
+
+        // Fallback for x-www-form-urlencoded
+        if (!$input) {
+            parse_str($rawInput, $input);
         }
 
-        $passengerName = $input['passengerName'] ?? $booking['passenger_name'];
-        $passengerType = $input['passengerType'] ?? $booking['passenger_type'];
-        $itineraryReference = $input['itineraryReference'] ?? $booking['itinerary_reference'];
-        $bookingType = $input['bookingType'] ?? $booking['booking_type'];
+        // Final fallback
+        if (!$input) {
+            $input = $_POST;
+        }
+
+        $passengerName = $input['passengerName']
+            ?? $input['passenger_name']
+            ?? $booking['passenger_name'];
+
+        $passengerType = $input['passengerType']
+            ?? $input['passenger_type']
+            ?? $booking['passenger_type'];
+
+        $itineraryReference = $input['itineraryReference']
+            ?? $input['itinerary_reference']
+            ?? $booking['itinerary_reference'];
+
+        $bookingType = $input['bookingType']
+            ?? $input['booking_type']
+            ?? $booking['booking_type'];
 
         $flightType = $input['flightType']
+            ?? $input['flight_type']
             ?? $bookingType
             ?? $booking['flight_type'];
 
         $isSynced = isset($input['isSynced'])
             ? (int)$input['isSynced']
-            : $booking['is_synced'];
+            : (
+                isset($input['is_synced'])
+                    ? (int)$input['is_synced']
+                    : $booking['is_synced']
+            );
 
-        $departure01 = $input['departure01'] ?? $booking['departure_01'];
-        $landing01 = $input['landing01'] ?? $booking['landing_01'];
+        $departure01 = $input['departure01']
+            ?? $input['departure_01']
+            ?? $booking['departure_01'];
 
-        $departure02 = $input['departure02'] ?? $booking['departure_02'];
-        $landing02 = $input['landing02'] ?? $booking['landing_02'];
+        $landing01 = $input['landing01']
+            ?? $input['landing_01']
+            ?? $booking['landing_01'];
 
-        $flightId = $input['flightId'] ?? $booking['flight_id'];
+        $departure02 = $input['departure02']
+            ?? $input['departure_02']
+            ?? $booking['departure_02'];
+
+        $landing02 = $input['landing02']
+            ?? $input['landing_02']
+            ?? $booking['landing_02'];
+
+        $flightId = $input['flightId']
+            ?? $input['flight_id']
+            ?? $booking['flight_id'];
 
         $stmt = $pdo->prepare('
             UPDATE bookings
@@ -204,10 +301,10 @@ switch ($method) {
                 booking_type = ?,
                 flight_type = ?,
                 is_synced = ?,
-                departure_01 = ?,
-                landing_01 = ?,
-                departure_02 = ?,
-                landing_02 = ?,
+                departure01 = ?,
+                landing01 = ?,
+                departure02 = ?,
+                landing02 = ?,
                 flight_id = ?
             WHERE id = ?
         ');
@@ -227,12 +324,27 @@ switch ($method) {
             $id
         ]);
 
-        $stmt = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
+        // Return updated booking
+        $stmt = $pdo->prepare(
+            'SELECT * FROM bookings WHERE id = ?'
+        );
+
         $stmt->execute([$id]);
+
+        $updatedBooking = $stmt->fetch();
+
+        // Get tickets
+        $stmtTickets = $pdo->prepare(
+            'SELECT * FROM tickets WHERE booking_id = ?'
+        );
+
+        $stmtTickets->execute([$id]);
+
+        $updatedBooking['tickets'] = $stmtTickets->fetchAll();
 
         sendJson([
             "message" => "Booking updated successfully",
-            "data" => $stmt->fetch()
+            "data" => $updatedBooking
         ]);
 
         break;
@@ -245,35 +357,68 @@ switch ($method) {
     case 'DELETE':
 
         if (!$id) {
-            sendJson("Booking ID is required", 400);
+            sendJson([
+                "message" => "Booking ID is required"
+            ], 400);
         }
 
-        // check exists
-        $stmt = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
+        // Check booking exists
+        $stmt = $pdo->prepare(
+            'SELECT * FROM bookings WHERE id = ?'
+        );
+
         $stmt->execute([$id]);
 
         $booking = $stmt->fetch();
 
         if (!$booking) {
-            sendJson("Booking not found", 404);
+            sendJson([
+                "message" => "Booking not found"
+            ], 404);
         }
 
-        // delete tickets first
-        $stmt = $pdo->prepare('DELETE FROM tickets WHERE booking_id = ?');
-        $stmt->execute([$id]);
+        try {
 
-        // delete booking
-        $stmt = $pdo->prepare('DELETE FROM bookings WHERE id = ?');
-        $stmt->execute([$id]);
+            $pdo->beginTransaction();
 
-        sendJson([
-            "message" => "Booking deleted successfully"
-        ]);
+            // Delete tickets first
+            $stmt = $pdo->prepare(
+                'DELETE FROM tickets WHERE booking_id = ?'
+            );
+
+            $stmt->execute([$id]);
+
+            // Delete booking
+            $stmt = $pdo->prepare(
+                'DELETE FROM bookings WHERE id = ?'
+            );
+
+            $stmt->execute([$id]);
+
+            $pdo->commit();
+
+            sendJson([
+                "message" => "Booking deleted successfully"
+            ]);
+
+        } catch (Exception $e) {
+
+            $pdo->rollBack();
+
+            sendJson([
+                "message" => "Delete failed",
+                "error" => $e->getMessage()
+            ], 500);
+        }
 
         break;
 
     default:
-        sendJson("Method not allowed", 405);
+
+        sendJson([
+            "message" => "Method not allowed"
+        ], 405);
+
         break;
 }
 ?>
