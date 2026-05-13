@@ -7,35 +7,93 @@ $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 
 switch ($method) {
     case 'GET':
-        if ($id) {
-            $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = ?');
-            $stmt->execute([$id]);
-            $flight = $stmt->fetch();
-            if ($flight) {
-                // Fetch airline relation
-                $stmtAir = $pdo->prepare('SELECT * FROM airlines WHERE id = ?');
-                $stmtAir->execute([$flight['airline_id']]);
-                $flight['airline'] = $stmtAir->fetch() ?: null;
-                sendJson($flight);
-            } else {
-                http_response_code(404);
-                exit();
-            }
-        } else {
-            $stmt = $pdo->query('SELECT * FROM flights');
-            $flights = $stmt->fetchAll();
-            foreach ($flights as &$flight) {
-                $stmtAir = $pdo->prepare('SELECT * FROM airlines WHERE id = ?');
-                $stmtAir->execute([$flight['airline_id']]);
-                $flight['airline'] = $stmtAir->fetch() ?: null;
-            }
-            sendJson($flights);
+if ($id) {
+
+    $stmt = $pdo->prepare('SELECT * FROM flights WHERE id = ?');
+    $stmt->execute([$id]);
+    $flight = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$flight) {
+        http_response_code(404);
+        echo json_encode([
+            "success" => false,
+            "message" => "Flight not found"
+        ]);
+        exit;
+    }
+
+    // airline join
+    $stmtAir = $pdo->prepare('SELECT * FROM airlines WHERE id = ?');
+    $stmtAir->execute([$flight['airline_id']]);
+    $flight['airline'] = $stmtAir->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    echo json_encode([
+        "success" => true,
+        "data" => $flight
+    ]);
+    exit;
+}
+
+else {
+
+    $stmt = $pdo->query('
+        SELECT *
+        FROM flights
+        ORDER BY
+            order_index IS NULL ASC,
+            order_index ASC,
+            id ASC
+    ');
+
+    $flights = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // collect airline ids (IMPORTANT optimization)
+    $airlineIds = [];
+
+    foreach ($flights as $f) {
+        if (!empty($f['airline_id'])) {
+            $airlineIds[] = $f['airline_id'];
         }
+    }
+
+    $airlineIds = array_unique($airlineIds);
+
+    // fetch airlines in ONE query (fix N+1 problem)
+    $airlinesMap = [];
+
+    if (!empty($airlineIds)) {
+
+        $in = implode(',', array_map('intval', $airlineIds));
+
+        $stmtAir = $pdo->query("
+            SELECT *
+            FROM airlines
+            WHERE id IN ($in)
+        ");
+
+        $airlines = $stmtAir->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($airlines as $air) {
+            $airlinesMap[$air['id']] = $air;
+        }
+    }
+
+    // attach airline data
+    foreach ($flights as &$flight) {
+        $flight['airline'] = $airlinesMap[$flight['airline_id']] ?? null;
+    }
+
+    echo json_encode([
+        "success" => true,
+        "data" => $flights
+    ]);
+    exit;
+}
         break;
 
     case 'POST':
         $input = json_decode(file_get_contents('php://input'), true);
-        
+
         $airlineId = isset($input['airline']) ? $input['airline']['id'] : null;
         $flightName = $input['flightName'] ?? null;
         $flightType = $input['flightType'] ?? null;
@@ -63,6 +121,7 @@ switch ($method) {
         $stmt->execute([$newId]);
         sendJson($stmt->fetch());
         break;
+
 
 case 'PUT':
 
